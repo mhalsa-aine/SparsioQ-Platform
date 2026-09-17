@@ -163,7 +163,22 @@ else:
     )
 
     st.sidebar.divider()
-    st.sidebar.header("💼 Live Trading Account")
+    st.sidebar.header("💼 Edit Demo Bank Balance")
+    
+    # EDITABLE BANK BALANCE CONTROL
+    new_bal_input = st.sidebar.number_input(
+        "✏️ Set Available Bank Balance (₹):",
+        min_value=100.0,
+        max_value=1000000.0,
+        value=float(st.session_state.virtual_cash),
+        step=500.0,
+        key="custom_bal_input"
+    )
+    if st.sidebar.button("💾 SAVE CUSTOM BANK BALANCE"):
+        st.session_state.virtual_cash = float(new_bal_input)
+        st.toast(f"Bank Balance updated to ₹{new_bal_input:,.2f}!", icon="💳")
+        st.rerun()
+
     st.sidebar.metric("Available Wallet Cash", f"₹ {st.session_state.virtual_cash:,.2f}")
     st.sidebar.metric("Total Invested Capital", f"₹ {st.session_state.total_invested:,.2f}")
 
@@ -172,7 +187,7 @@ else:
     else:
         st.sidebar.warning("⚠️ No Bank Account Linked Yet")
 
-    if st.sidebar.button("🔄 Reset Demo Wallet (₹ 10,000)"):
+    if st.sidebar.button("🔄 Reset Wallet to ₹10,000"):
         st.session_state.virtual_cash = 10000.0
         st.session_state.total_invested = 0.0
         st.session_state.recent_investment = None
@@ -277,10 +292,10 @@ else:
                 st.success("✅ Razorpay API keys updated successfully!")
 
     # ---------------------------------------------------------
-    # MODE 1: ZERO-KNOWLEDGE AUTO-PILOT
+    # MODE 1: ZERO-KNOWLEDGE AUTO-PILOT (DYNAMIC AMOUNT RECALCULATION)
     # ---------------------------------------------------------
     elif "Zero-Knowledge" in user_mode:
-        st.info("💡 **Welcome to Real-Time Auto-Pilot!** Anyone with zero stock market knowledge can invest using real UPI (Google Pay, PhonePe, Paytm) or linked Bank Accounts.")
+        st.info("💡 **Welcome to Real-Time Auto-Pilot!** Enter any custom investment amount below (e.g. ₹100, ₹5,000, ₹10,000). The portfolio breakdown and fractional share units update dynamically in real time!")
 
         w_col1, w_col2, w_col3 = st.columns(3)
         w_col1.metric("💳 Available Wallet Balance", f"₹ {st.session_state.virtual_cash:,.2f}")
@@ -292,7 +307,17 @@ else:
         col_b1, col_b2, col_b3 = st.columns(3)
         
         with col_b1:
-            invest_amount = st.number_input("1. How much money do you want to invest? (₹)", min_value=10.0, max_value=st.session_state.virtual_cash if st.session_state.virtual_cash > 10 else 10000.0, value=min(100.0, st.session_state.virtual_cash), step=10.0)
+            max_inv_limit = max(100.0, float(st.session_state.virtual_cash))
+            default_inv_val = min(5000.0 if st.session_state.virtual_cash >= 5000 else 500.0, max_inv_limit)
+            
+            invest_amount = st.number_input(
+                "1. How much money do you want to invest? (₹)",
+                min_value=10.0,
+                max_value=max_inv_limit,
+                value=float(default_inv_val),
+                step=100.0,
+                key="auto_invest_amount"
+            )
             
         with col_b2:
             payment_mode = st.selectbox("2. Select Real Payment Method:", ["📲 Instant UPI (GPay / PhonePe / Paytm)", "🏦 Direct Linked Bank Account", "💳 Razorpay Gateway"])
@@ -300,13 +325,17 @@ else:
         with col_b3:
             user_goal = st.selectbox("3. What is your goal?", ["🔰 Safe & Steady Growth (Low Risk)", "⚖️ Smart Balanced Growth (Recommended)", "🚀 Maximum Growth (High Returns)"])
 
+        # Dynamic Allocation Calculation for EXACT Invested Amount
         p_hdfc = live_prices["HDFCBANK.NS"]
         p_rel = live_prices["RELIANCE.NS"]
         p_tcs = live_prices["TCS.NS"]
         p_infy = live_prices["INFY.NS"]
 
         w_hdfc, w_rel, w_tcs, w_infy = 0.38, 0.29, 0.21, 0.12
-        amt_hdfc, amt_rel, amt_tcs, amt_infy = invest_amount * w_hdfc, invest_amount * w_rel, invest_amount * w_tcs, invest_amount * w_infy
+        amt_hdfc = invest_amount * w_hdfc
+        amt_rel = invest_amount * w_rel
+        amt_tcs = invest_amount * w_tcs
+        amt_infy = invest_amount * w_infy
 
         sh_hdfc = amt_hdfc / p_hdfc
         sh_rel = amt_rel / p_rel
@@ -314,13 +343,13 @@ else:
         sh_infy = amt_infy / p_infy
 
         st.markdown("<br>", unsafe_allow_html=True)
-        st.subheader(f"📋 Live Real-Time Portfolio Breakdown for ₹{invest_amount:.2f}")
+        st.subheader(f"📋 Live Portfolio Breakdown for Exact ₹ {invest_amount:,.2f} Investment")
         
         df_beginner = pd.DataFrame([
-            {"Company": "HDFC Bank Ltd.", "Sector": "Banking", "Live Price (₹)": f"₹ {p_hdfc:,.2f}", "Your Allocation": f"₹ {amt_hdfc:.2f}", "Your Share Units": f"{sh_hdfc:.4f} shares", "Safety Rating": "⭐⭐⭐⭐⭐"},
-            {"Company": "Reliance Industries", "Sector": "Energy / Tech", "Live Price (₹)": f"₹ {p_rel:,.2f}", "Your Allocation": f"₹ {amt_rel:.2f}", "Your Share Units": f"{sh_rel:.4f} shares", "Safety Rating": "⭐⭐⭐⭐⭐"},
-            {"Company": "Tata Consultancy Services", "Sector": "Tech / IT", "Live Price (₹)": f"₹ {p_tcs:,.2f}", "Your Allocation": f"₹ {amt_tcs:.2f}", "Your Share Units": f"{sh_tcs:.4f} shares", "Safety Rating": "⭐⭐⭐⭐⭐"},
-            {"Company": "Infosys Ltd.", "Sector": "Tech / IT", "Live Price (₹)": f"₹ {p_infy:,.2f}", "Your Allocation": f"₹ {amt_infy:.2f}", "Your Share Units": f"{sh_infy:.4f} shares", "Safety Rating": "⭐⭐⭐⭐⭐"}
+            {"Company": "HDFC Bank Ltd.", "Sector": "Banking", "Allocation %": "38%", "Live Price (₹)": f"₹ {p_hdfc:,.2f}", "Your Money Allocated (₹)": f"₹ {amt_hdfc:,.2f}", "Your Share Units": f"{sh_hdfc:.4f} shares", "Safety Rating": "⭐⭐⭐⭐⭐"},
+            {"Company": "Reliance Industries", "Sector": "Energy / Tech", "Allocation %": "29%", "Live Price (₹)": f"₹ {p_rel:,.2f}", "Your Money Allocated (₹)": f"₹ {amt_rel:,.2f}", "Your Share Units": f"{sh_rel:.4f} shares", "Safety Rating": "⭐⭐⭐⭐⭐"},
+            {"Company": "Tata Consultancy Services", "Sector": "Tech / IT", "Allocation %": "21%", "Live Price (₹)": f"₹ {p_tcs:,.2f}", "Your Money Allocated (₹)": f"₹ {amt_tcs:,.2f}", "Your Share Units": f"{sh_tcs:.4f} shares", "Safety Rating": "⭐⭐⭐⭐⭐"},
+            {"Company": "Infosys Ltd.", "Sector": "Tech / IT", "Allocation %": "12%", "Live Price (₹)": f"₹ {p_infy:,.2f}", "Your Money Allocated (₹)": f"₹ {amt_infy:,.2f}", "Your Share Units": f"{sh_infy:.4f} shares", "Safety Rating": "⭐⭐⭐⭐⭐"}
         ])
         st.dataframe(df_beginner, use_container_width=True, hide_index=True)
 
@@ -329,18 +358,18 @@ else:
         c_p1, c_p2 = st.columns([1, 1])
 
         with c_p1:
-            st.markdown("### 📲 Real UPI Deep Link & QR Code")
+            st.markdown(f"### 📲 Real UPI Gateway for ₹ {invest_amount:,.2f}")
             vpa_addr = st.session_state.linked_bank_account['vpa'] if st.session_state.linked_bank_account else "sparsioq@razorpay"
-            upi_url = generate_upi_link(vpa_addr, "SparsioQ Investment", invest_amount, "Auto-Pilot Investment Order")
+            upi_url = generate_upi_link(vpa_addr, "SparsioQ Investment", invest_amount, f"Auto-Pilot Order for {invest_amount}")
             
-            st.markdown(f'<a href="{upi_url}" target="_blank" style="display:inline-block; width:100%; text-align:center; background-color:#0284c7; color:white; font-weight:bold; padding:12px; border-radius:8px; text-decoration:none;">📲 OPEN GPAY / PHONEPE / PAYTM TO PAY ₹{invest_amount:.2f}</a>', unsafe_allow_html=True)
-            st.caption("Clicking above launches your installed UPI app (Google Pay, PhonePe, Paytm) directly to complete real payment.")
+            st.markdown(f'<a href="{upi_url}" target="_blank" style="display:inline-block; width:100%; text-align:center; background-color:#0284c7; color:white; font-weight:bold; padding:12px; border-radius:8px; text-decoration:none;">📲 OPEN GPAY / PHONEPE / PAYTM TO PAY ₹ {invest_amount:,.2f}</a>', unsafe_allow_html=True)
+            st.caption(f"Clicking above launches your installed UPI app to complete real payment of ₹{invest_amount:,.2f}.")
 
         with c_p2:
-            st.markdown("### ⚡ Execute Real Investment Order")
-            if st.button(f"🚀 AUTHORIZE & INVEST ₹{invest_amount:.2f} NOW"):
+            st.markdown(f"### ⚡ Execute Investment of ₹ {invest_amount:,.2f}")
+            if st.button(f"🚀 AUTHORIZE & INVEST ₹ {invest_amount:,.2f} NOW"):
                 if st.session_state.virtual_cash < invest_amount:
-                    st.error(f"❌ Insufficient Available Balance! You have ₹{st.session_state.virtual_cash:.2f}. Deposit funds via UPI or Bank Link.")
+                    st.error(f"❌ Insufficient Available Balance! You have ₹{st.session_state.virtual_cash:,.2f}. Edit your bank balance in the sidebar.")
                 else:
                     st.session_state.virtual_cash -= invest_amount
                     st.session_state.total_invested += invest_amount
@@ -356,11 +385,11 @@ else:
                     })
 
                     st.balloons()
-                    st.success(f"🎉 SUCCESS! ₹{invest_amount:.2f} successfully debited and invested into 4 core stocks. Remaining Cash Balance: ₹{st.session_state.virtual_cash:,.2f}")
+                    st.success(f"🎉 SUCCESS! ₹{invest_amount:,.2f} successfully debited and invested into 4 core stocks. Remaining Cash Balance: ₹{st.session_state.virtual_cash:,.2f}")
                     st.rerun()
 
         if st.session_state.recent_investment:
-            st.success(f"✅ Last Successful Auto-Pilot Investment: **₹{st.session_state.recent_investment:.2f}** allocated across 4 core stocks. Remaining Available Cash: **₹{st.session_state.virtual_cash:,.2f}**")
+            st.success(f"✅ Last Successful Auto-Pilot Investment: **₹{st.session_state.recent_investment:,.2f}** allocated across 4 core stocks. Remaining Available Cash: **₹{st.session_state.virtual_cash:,.2f}**")
 
     # ---------------------------------------------------------
     # MODE 2: QUANT PRO MODE
@@ -381,8 +410,8 @@ else:
         with tab1:
             col_w1, col_w2 = st.columns([1, 1])
             with col_w1:
-                st.subheader("🧙‍♂️ ₹100 Micro-Investment Fractional Allocation Engine")
-                cap = st.number_input("Capital Input (INR ₹):", value=min(100.0, st.session_state.virtual_cash), step=10.0, key="pro_cap")
+                st.subheader("🧙‍♂️ Micro-Investment Fractional Allocation Engine")
+                cap = st.number_input("Capital Input (INR ₹):", value=min(5000.0, st.session_state.virtual_cash), step=100.0, key="pro_cap")
                 
                 alloc_data_pro = [
                     {"Ticker": "HDFCBANK.NS", "Allocation %": "38%", "Amount (₹)": f"₹ {cap*0.38:.2f}", "Shares": f"{cap*0.38/live_prices['HDFCBANK.NS']:.4f}", "ESG": 86},
@@ -477,4 +506,4 @@ else:
                 st.warning("⚡ **Quantum Advantage:** Quadratic Speedup O(1/ε) over Classical Monte Carlo O(1/ε²)")
 
     st.divider()
-    st.caption(f"SparsioQ Platform | Department of Artificial Intelligence | Terms Accepted & Live Gateway Active ({datetime.now().strftime('%B %d, %Y')})")
+    st.caption(f"SparsioQ Platform | Dynamic Custom Amount Breakdown Active ({datetime.now().strftime('%B %d, %Y')})")
