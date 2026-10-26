@@ -297,11 +297,12 @@ else:
     st.sidebar.divider()
     st.sidebar.header("💳 Demo Bank Balance & Wallet")
 
+    current_cash_val = max(0.0, float(st.session_state.virtual_cash))
     new_bal_input = st.sidebar.number_input(
         "Edit Demo Available Bank Balance (₹):",
-        min_value=100.0,
+        min_value=0.0,
         max_value=10000000.0,
-        value=float(st.session_state.virtual_cash),
+        value=current_cash_val,
         step=500.0,
         key="custom_bal_input"
     )
@@ -595,12 +596,14 @@ else:
 
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
-            max_inv_limit = max(100.0, float(st.session_state.virtual_cash))
-            default_val = min(5000.0 if st.session_state.virtual_cash >= 5000 else 500.0, max_inv_limit)
+            cash_avail = max(0.0, float(st.session_state.virtual_cash))
+            max_inv_limit = max(100.0, cash_avail)
+            default_val = min(5000.0 if cash_avail >= 5000.0 else max(10.0, min(500.0, cash_avail)), max_inv_limit)
+            default_val = max(10.0, default_val)
             invest_amount = st.number_input(
                 "1. How much do you want to invest today? (₹)",
                 min_value=10.0,
-                max_value=max_inv_limit,
+                max_value=float(max_inv_limit),
                 value=float(default_val),
                 step=100.0,
                 key="auto_invest_amount"
@@ -869,7 +872,17 @@ else:
             col_w1, col_w2 = st.columns([1, 1])
             with col_w1:
                 st.subheader("⚡ MDP Q-Learning Slicing & TWAP Execution")
-                cap = st.number_input("Capital Input for Pro Engine (INR ₹):", value=min(5000.0, float(st.session_state.virtual_cash)), step=100.0, key="pro_cap")
+                pro_cash = max(0.0, float(st.session_state.virtual_cash))
+                pro_max = max(100.0, pro_cash)
+                pro_default = max(10.0, min(5000.0, pro_max))
+                cap = st.number_input(
+                    "Capital Input for Pro Engine (INR ₹):",
+                    min_value=10.0,
+                    max_value=float(pro_max),
+                    value=float(pro_default),
+                    step=100.0,
+                    key="pro_cap"
+                )
 
                 alloc_pro = [
                     {"Ticker": "HDFCBANK.NS", "Allocation %": "38%", "Amount (₹)": f"₹ {cap*0.38:.2f}", "Shares": f"{cap*0.38/live_prices.get('HDFCBANK.NS', 1720.0):.4f}", "ESG": 88},
